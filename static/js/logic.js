@@ -13,37 +13,38 @@ function createFeatures(earthquakeData) {
 
   // Define a function that we want to run once for each feature in the features array.
   // Give each feature a popup that describes the place and time of the earthquake.
-  function onEachFeature(feature, layer) {
-    layer.bindPopup(`<h3>${feature.properties.place}</h3><hr><p>${new Date(feature.properties.time)}</p>`);
+  function onEachFeature(features, layer) {
+    layer.bindPopup(`<h3>${features.properties.place}</h3><hr><p>${new Date(features.properties.time)}</p>`);
   }
 
-  // Define function for changing color based oon magnitude of earthquake
-  function changeColor(feature) {
-    if (feature.properties.mag > 2)
+  // Define function for changing color based on magnitude of earthquake
+  function changeColor(features) {
+    if (features.properties.mag > 7)
     return 'black'
-    else if (feature.properties.mag > 1)
-    return 'orange'
-    else
+    else if (features.properties.mag > 5)
     return 'red'
+    else if (features.properties.mag > 2.5)
+    return 'yellow'
+    else
+    return 'green'
   };
 
-  function changeSize(feature) {
-    if (feature.geometry.coordinates[2] > 100)
+  function changeSize(features) {
+    if (features.geometry.coordinates[2] > 100)
     return 0
-    else return
-    feature.geometry.coordinates[2]
+    else return features.geometry.coordinates[2]
   };
   // Create a GeoJSON layer that contains the features array on the earthquakeData object.
   // Run the onEachFeature function once for each piece of data in the array.
   let earthquakes = L.geoJSON(earthquakeData, {
     onEachFeature: onEachFeature,
-    pointToLayer: function(feature, latlng) {
+    pointToLayer: function(features, latlng) {
       return L.circleMarker(latlng)
     },
-    style: function geojsonMarkerOptions(feature) {
+    style: function geojsonMarkerOptions(features) {
       return {
-          radius: changeSize(feature),
-          fillColor: changeColor(feature),
+          radius: changeSize(features),
+          fillColor: changeColor(features),
           color: '#000',
           weight: 1,
           opacity: 1,
@@ -74,9 +75,11 @@ function createMap(earthquakes) {
     "Topographic Map": topo
   };
 
+  let tectonicplates = new L.LayerGroup()
   // Create an overlay object to hold our overlay.
   let overlayMaps = {
-    Earthquakes: earthquakes
+    Earthquakes: earthquakes,
+    'Tectonic Plates': tectonicplates
   };
 
   // Create our map, giving it the streetmap and earthquakes layers to display on load.
@@ -95,28 +98,41 @@ function createMap(earthquakes) {
     collapsed: false
   }).addTo(myMap);
 
+  // Legend
+  let legend = L.control({position: 'bottomright'});
+  // console.log(geojson.options.limits);
+  // console.log(geojson.options.colors);
+  legend.onAdd = function (myMap) {
+
+      let div = L.DomUtil.create('div', 'info legend'),
+        // grades = geojson.options.limits.map( m => Math.round(m)),
+        grades = [0, 2.5, 5, 7 ],
+        colors = ['green', 'yellow', 'red', 'black'];
+
+      // loop through our density intervals and generate a label with a colored square for each interval
+      for (let i = 0; i < grades.length; i++) {
+        div.innerHTML +=
+          '<i style="background:' + colors[i] + '"></i> ' +
+          grades[i] + (grades[i + 1] ? '&ndash;' + grades[i + 1] + '<br>' : '+');
+      }
+
+      return div;
+      
+  };
+
+  legend.addTo(myMap);
+
+  // Perform a GET request to the query URL/
+  d3.json('https://raw.githubusercontent.com/fraxen/tectonicplates/master/GeoJSON/PB2002_boundaries.json').then(function (data) {
+
+    L.geoJSON(data, {
+
+    }).addTo(tectonicplates);
+
+  tectonicplates.addTo(myMap)
+  });
 }
 
-// Legend
-let legend = L.control({position: 'bottomright'});
 
-legend.onAdd = function (map) {
-
-    let div = L.DomUtil.create('div', 'info legend'),
-      // grades = geojson.options.limits.map( m => Math.round(m)),
-      grades = [0, 10, 20, 50, 100, 200, 500, 1000],
-      labels = [];
-
-    // loop through our density intervals and generate a label with a colored square for each interval
-    for (let i = 0; i < grades.length; i++) {
-      div.innerHTML +=
-        '<i style="background:' + changeColor(i) + '"></i> ' +
-        grades[i] + (grades[i + 1] ? '&ndash;' + grades[i + 1] + '<br>' : '+');
-    }
-
-    return div;
-};
-
-legend.addTo(mymap);
 
 
